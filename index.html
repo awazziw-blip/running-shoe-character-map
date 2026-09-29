@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <meta name="theme-color" content="#07101f"/>
+  <title>Running Shoe Character Map — ASICS Pilot</title>
+  <link rel="stylesheet" href="styles.css"/>
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <div class="eyebrow">RUNNING SHOE CHARACTER MAP</div>
+      <h1>รองเท้าภาษาคน</h1>
+      <p>เริ่มจากคู่ที่รู้จัก แล้วดูว่าถ้าเปลี่ยนไปอีกคู่ Character จะเปลี่ยนอย่างไร</p>
+    </div>
+    <div class="badge">ASICS PILOT · MATCH v1.1</div>
+  </header>
+  <main>
+    <section class="controls card">
+      <label>เลือกรองเท้าตั้งต้น</label>
+      <select id="shoeSelect"></select>
+      <div class="direction-wrap"><span>อยากเปลี่ยนไปทางไหน?</span><div id="directionChips" class="chips"></div></div>
+    </section>
+    <section id="hero" class="hero card"></section>
+    <section class="section-head"><div><div class="eyebrow">CHARACTER</div><h2>7 แกนหลัก</h2></div><div class="scale-note">1 = ต่ำมาก · 5 = สูงมาก</div></section>
+    <section id="axisGrid" class="axis-grid"></section>
+    <section class="section-head"><div><div class="eyebrow">CHANGE DIRECTION</div><h2>จากคู่นี้ ไปไหนดี?</h2></div><div id="relationCount" class="scale-note"></div></section>
+    <section id="relationList" class="relation-grid"></section>
+    <section id="comparePanel" class="compare card hidden">
+      <div class="compare-head"><div><div class="eyebrow">DIRECT COMPARE</div><h2 id="compareTitle"></h2></div><button id="closeCompare" class="ghost">ปิด</button></div>
+      <div id="matchHero" class="match-hero"></div><div id="compareAxes"></div><div id="deltaSummary" class="delta-box"></div>
+    </section>
+  </main>
+  <footer><strong>Character Match</strong> วัดความใกล้ของ Character ไม่ใช่คะแนนคุณภาพหรือความเหมาะสมกับทุกคน · แสดงเฉพาะคู่ที่มี Relation ในฐานข้อมูล</footer>
+  <script src="app.js"></script>
+</body>
+</html>
