@@ -1,0 +1,86 @@
+const AXES=[["softness","Softness"],["bounce","Bounce"],["stability","Stability"],["guidance","Guidance"],["responsiveness","Responsiveness"],["agility","Agility"],["comfort","Comfort"]];
+const DIRECTIONS=[
+  {id:"all",label:"ทั้งหมด"},
+  {id:"softness-up",axis:"softness",sign:1,label:"นุ่มขึ้น"},{id:"softness-down",axis:"softness",sign:-1,label:"แน่นขึ้น"},
+  {id:"bounce-up",axis:"bounce",sign:1,label:"เด้งขึ้น"},{id:"bounce-down",axis:"bounce",sign:-1,label:"เด้งน้อยลง"},
+  {id:"stability-up",axis:"stability",sign:1,label:"มั่นคงขึ้น"},{id:"stability-down",axis:"stability",sign:-1,label:"มั่นคงน้อยลง"},
+  {id:"guidance-up",axis:"guidance",sign:1,label:"ประคองขึ้น"},{id:"guidance-down",axis:"guidance",sign:-1,label:"ประคองน้อยลง"},
+  {id:"responsiveness-up",axis:"responsiveness",sign:1,label:"ตอบสนองขึ้น"},{id:"responsiveness-down",axis:"responsiveness",sign:-1,label:"ตอบสนองลดลง"},
+  {id:"agility-up",axis:"agility",sign:1,label:"คล่องขึ้น"},{id:"agility-down",axis:"agility",sign:-1,label:"คล่องน้อยลง"},
+  {id:"comfort-up",axis:"comfort",sign:1,label:"สบายขึ้น"},{id:"comfort-down",axis:"comfort",sign:-1,label:"สบายลดลง"}
+];
+let DB,currentId,direction="all",currentBrand="ASICS";
+const $=id=>document.getElementById(id);
+function labelForMatch(x){return x>=90?"VERY CLOSE":x>=80?"CLOSE":x>=70?"RELATED":x>=60?"DISTANT":"VERY DISTANT"}
+function shoe(id){return DB.shoes.find(x=>x.id===id)}
+function brandOf(s){return s?.brand||"ASICS"}
+function meter(v){return `<div class="meter">${[1,2,3,4,5].map(i=>`<span class="seg ${i<=v?"on":""}"></span>`).join("")}</div>`}
+function mini(v){return `<div class="mini-meter"><div class="mini-fill" style="width:${v*20}%"></div></div>`}
+function strengthClass(s){return s==="STRONG"?"strength-strong":s==="MEDIUM"?"strength-medium":"strength-weak"}
+function relationOther(r,id){if(r.source===id)return r.target;if(r.target===id)return r.source;return null}
+function isReversed(r,id){return r.target===id}
+function axisDeltaText(a,b){
+  const WORDS={softness:["นุ่มขึ้น","นุ่มลดลง"],bounce:["เด้งขึ้น","เด้งลดลง"],stability:["มั่นคงขึ้น","มั่นคงลดลง"],guidance:["Guidance เพิ่ม","Guidance ลด"],responsiveness:["ตอบสนองขึ้น","ตอบสนองลดลง"],agility:["คล่องขึ้น","คล่องลดลง"],comfort:["Comfort เพิ่ม","Comfort ลด"]};
+  const out=[];AXES.forEach(([k])=>{const d=b[k]-a[k];if(d>0)out.push(WORDS[k][0]);else if(d<0)out.push(WORDS[k][1])});
+  return out.length?out.join(" · "):"Character 7 แกนอยู่ในระดับเดียวกัน";
+}
+function renderDirections(){
+  $("directionChips").innerHTML=DIRECTIONS.map(d=>`<button class="chip ${direction===d.id?"active":""}" data-dir="${d.id}">${d.label}</button>`).join("");
+  document.querySelectorAll("[data-dir]").forEach(b=>b.onclick=()=>{direction=b.dataset.dir;renderDirections();renderRelations()});
+}
+function populateShoes(preferredId=null){
+  const sel=$("shoeSelect"),list=DB.shoes.filter(s=>brandOf(s)===currentBrand);
+  sel.innerHTML=list.map(s=>`<option value="${s.id}">${s.id} · ${s.category}</option>`).join("");
+  const next=(preferredId&&list.some(s=>s.id===preferredId))?preferredId:(currentBrand==="ASICS"&&list.some(s=>s.id==="GT-2000 15")?"GT-2000 15":currentBrand==="adidas"&&list.some(s=>s.id==="Supernova Rise 3")?"Supernova Rise 3":list[0]?.id);
+  currentId=next; if(next)sel.value=next;
+}
+function render(){
+  const s=shoe(currentId); if(!s)return;
+  currentBrand=brandOf(s); $("brandSelect").value=currentBrand;
+  $("hero").innerHTML=`<div class="shoe-art"><div class="shoe-shape"></div></div><div><div class="eyebrow">${brandOf(s)} · ${s.category.toUpperCase()}</div><h2>${s.id}</h2><div class="meta"><span class="pill">${s.ride}</span><span class="pill">${s.category}</span>${s.confidence?`<span class="pill">Confidence ${s.confidence}</span>`:""}</div><p class="human">${s.human}</p></div>`;
+  $("axisGrid").innerHTML=AXES.map(([k,n])=>`<div class="axis-card"><div class="axis-top"><span class="axis-label">${n}</span><span class="axis-value">${s[k]}/5</span></div>${meter(s[k])}</div>`).join("");
+  renderRelations(); $("comparePanel").classList.add("hidden");
+}
+function connectedRelations(){return DB.relations.filter(r=>r.source===currentId||r.target===currentId)}
+function filteredRelations(){
+  const src=shoe(currentId),spec=DIRECTIONS.find(d=>d.id===direction);
+  return connectedRelations().filter(r=>{if(!spec||spec.id==="all")return true;const other=shoe(relationOther(r,currentId));if(!other)return false;const diff=other[spec.axis]-src[spec.axis];return spec.sign>0?diff>0:diff<0});
+}
+function renderRelations(){
+  const rs=filteredRelations(); $("relationCount").textContent=`${rs.length} connected relation${rs.length===1?"":"s"}`;
+  $("relationList").innerHTML=rs.length?rs.map(r=>{const otherId=relationOther(r,currentId),other=shoe(otherId),rev=isReversed(r,currentId),delta=rev?axisDeltaText(shoe(currentId),other):r.delta;return `<article class="relation" data-rel="${r.id}"><div class="rel-top"><div><div class="eyebrow">${brandOf(other)} · ${r.type}</div><h3>→ ${otherId}</h3></div><div class="match">${r.match.toFixed(1)}%</div></div><div class="rel-delta">${delta}</div><div class="rel-meta"><span class="tiny">${labelForMatch(r.match)}</span><span class="strength-badge ${strengthClass(r.strength)}">${r.strength}</span></div></article>`}).join(""):`<div class="card" style="padding:20px;color:var(--muted)">ยังไม่มี Relation ที่เชื่อมไปในทิศทางนี้</div>`;
+  document.querySelectorAll("[data-rel]").forEach(el=>el.onclick=()=>compare(DB.relations.find(r=>r.id===el.dataset.rel),currentId));
+}
+function compare(r,fromId=r.source){
+  const otherId=relationOther(r,fromId);if(!otherId)return;const a=shoe(fromId),b=shoe(otherId);if(!a||!b)return;
+  const rev=isReversed(r,fromId),delta=rev?axisDeltaText(a,b):r.delta;
+  $("comparePanel").classList.remove("hidden"); $("compareTitle").textContent=`${a.id} → ${b.id}`;
+  $("matchHero").innerHTML=`<div><div class="match-big">${r.match.toFixed(1)}%</div><div class="match-label">${labelForMatch(r.match)} · Character Match</div></div><span class="strength-badge compare-strength ${strengthClass(r.strength)}">${r.strength}</span>`;
+  $("compareNames").innerHTML=`<div class="compare-name-card"><span>FROM · ${brandOf(a)}</span><strong>${a.id}</strong></div><div class="compare-arrow">→</div><div class="compare-name-card"><span>TO · ${brandOf(b)}</span><strong>${b.id}</strong></div>`;
+  $("compareAxes").innerHTML=AXES.map(([k,n])=>{const d=b[k]-a[k],c=d>0?"up":d<0?"down":"same",arrow=d>0?"↑":d<0?"↓":"=";return `<div class="comp-row"><div class="comp-name">${n}</div>${mini(a[k])}<div>${a[k]}</div>${mini(b[k])}<div class="arrow ${c}">${arrow}</div></div>`}).join("");
+  $("deltaSummary").innerHTML=`<strong>Character Change</strong><br>${delta}`; renderJourney(b.id); $("comparePanel").scrollIntoView({behavior:"smooth",block:"start"});
+}
+function relationCard(r,side,current){const other=relationOther(r,current);const s=shoe(other);const arrow=side==="back"?"←":"→";return `<button class="journey-row ${side}" data-journey-rel="${r.id}" data-side="${side}"><span class="journey-arrow">${arrow}</span><strong>${brandOf(s)} · ${other}</strong><span class="journey-match">${r.match.toFixed(1)}%</span><em class="strength-badge ${strengthClass(r.strength)}">${r.strength}</em></button>`}
+function renderJourney(current){
+  const incoming=DB.relations.filter(r=>r.target===current),outgoing=DB.relations.filter(r=>r.source===current);
+  const left=incoming.map(r=>relationCard(r,"back",current)).join("")||`<div class="journey-empty compact">—</div>`;
+  const right=outgoing.map(r=>relationCard(r,"forward",current)).join("")||`<div class="journey-empty compact">—</div>`;
+  const cs=shoe(current);
+  $("nextJourney").innerHTML=`<div class="journey-title">เส้นทางต่อเนื่อง</div><div class="journey-track compact-track"><div class="journey-side">${left}</div><button class="journey-current compact-current" data-focus-shoe="${current}"><small>${brandOf(cs)} · ตอนนี้</small><strong>${current}</strong></button><div class="journey-side">${right}</div></div>`;
+  document.querySelectorAll("[data-journey-rel]").forEach(btn=>btn.onclick=()=>{const r=DB.relations.find(x=>x.id===btn.dataset.journeyRel);compare(r,current)});
+  const cur=document.querySelector("[data-focus-shoe]");if(cur)cur.onclick=()=>focusShoe(current);
+}
+function focusShoe(id){
+  const s=shoe(id);if(!s)return;currentBrand=brandOf(s);$("brandSelect").value=currentBrand;populateShoes(id);direction="all";renderDirections();render();window.scrollTo({top:0,behavior:"smooth"});
+}
+async function init(){
+  const [asics,adidas,cross]=await Promise.all([fetch("data/asics.json").then(r=>r.json()),fetch("data/adidas.json").then(r=>r.json()),fetch("data/cross-brand.json").then(r=>r.json())]);
+  asics.shoes=asics.shoes.map(s=>({...s,brand:s.brand||"ASICS"})); adidas.shoes=adidas.shoes.map(s=>({...s,brand:s.brand||"adidas"}));
+  DB={shoes:[...asics.shoes,...adidas.shoes],relations:[...asics.relations,...adidas.relations,...cross.relations]};
+  const brandSel=$("brandSelect"); brandSel.innerHTML=`<option value="ASICS">ASICS</option><option value="adidas">adidas</option>`; brandSel.value=currentBrand;
+  brandSel.onchange=()=>{currentBrand=brandSel.value;populateShoes();direction="all";renderDirections();render()};
+  $("shoeSelect").onchange=()=>{currentId=$("shoeSelect").value;direction="all";renderDirections();render()};
+  $("closeCompare").onclick=()=>$("comparePanel").classList.add("hidden");
+  populateShoes("GT-2000 15");renderDirections();render();
+}
+init();
